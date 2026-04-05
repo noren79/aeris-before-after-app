@@ -1,1 +1,349 @@
-test
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Aeris">
+<meta name="theme-color" content="#0a1628">
+<title>Aeris</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; width: 100%; background: #0a1628; color: #f4f8ff; font-family: Arial, sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+.screen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; opacity: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+.screen.active { opacity: 1; pointer-events: all; }
+.hdr { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; background: #0a1628; flex-shrink: 0; }
+.logo { font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #f4f8ff; }
+.logo span { color: #4da6ff; }
+.badge { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #4da6ff; background: #112040; border: 1px solid rgba(77,166,255,0.3); border-radius: 20px; padding: 4px 12px; }
+.btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; text-align: center; }
+.btn-blue { background: #1a6bdb; color: #f4f8ff; }
+.btn-green { background: #22d4a0; color: #0a1628; }
+.btn-outline { background: transparent; border: 1.5px solid rgba(255,255,255,0.2); color: #8a9ab8; width: 100%; padding: 13px; border-radius: 12px; font-size: 15px; cursor: pointer; }
+.btn:active, .btn-outline:active { opacity: 0.7; }
+.body-scroll { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; padding: 20px; gap: 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.intro { text-align: center; padding: 16px 0 4px; }
+.intro h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+.intro p { font-size: 14px; color: #8a9ab8; line-height: 1.6; }
+#preview-wrap { display: none; width: 100%; border-radius: 14px; overflow: hidden; position: relative; background: #000; flex-shrink: 0; }
+#preview-img { width: 100%; max-height: 38vh; object-fit: cover; display: block; }
+#preview-badge { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(10,22,40,0.85); color: #22d4a0; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 4px 14px; border-radius: 20px; white-space: nowrap; }
+</style>
+  <style>
+#opacity-row { width: 100%; flex-shrink: 0; padding: 6px 20px 4px; display: flex; align-items: center; gap: 12px; background: #0a1628; }
+#opacity-row label { font-size: 12px; color: #8a9ab8; white-space: nowrap; }
+#opacity-slider { flex: 1; accent-color: #4da6ff; }
+#zoom-row { width: 100%; flex-shrink: 0; padding: 2px 20px 6px; display: flex; align-items: center; gap: 12px; background: #0a1628; }
+#zoom-row label { font-size: 12px; color: #8a9ab8; white-space: nowrap; }
+#zoom-slider { flex: 1; accent-color: #4da6ff; }
+#cam-wrap { position: relative; width: 100%; flex: 1; overflow: hidden; background: #000; }
+#cam-inner { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: center center; will-change: transform; }
+#video-after { width: 100%; height: 100%; object-fit: cover; display: block; }
+#ghost-img { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.35; pointer-events: none; display: none; z-index: 2; }
+#ghost-tip { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(10,22,40,0.8); border: 1px solid rgba(77,166,255,0.3); border-radius: 20px; padding: 5px 16px; font-size: 12px; font-weight: 700; color: #4da6ff; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; z-index: 5; pointer-events: none; }
+#zoom-indicator { position: absolute; top: 14px; right: 14px; background: rgba(10,22,40,0.8); color: #f4f8ff; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 8px; z-index: 5; pointer-events: none; display: none; }
+#cam-bottom { width: 100%; flex-shrink: 0; padding: 14px 24px 28px; background: #0a1628; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.shutter { width: 70px; height: 70px; border-radius: 50%; background: #f4f8ff; border: 4px solid rgba(255,255,255,0.35); box-shadow: 0 0 0 6px rgba(255,255,255,0.1); cursor: pointer; flex-shrink: 0; transition: transform 0.1s; }
+.shutter:active { transform: scale(0.9); }
+#slider-wrap { position: relative; width: 100%; padding-bottom: 75%; border-radius: 14px; overflow: hidden; background: #000; flex-shrink: 0; touch-action: none; cursor: ew-resize; }
+#slider-wrap > * { position: absolute; }
+.sl-layer { top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; }
+.sl-layer img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+#sl-before { clip-path: inset(0 50% 0 0); }
+#sl-line { top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; transform: translateX(-50%); pointer-events: none; z-index: 5; }
+#sl-handle { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 42px; height: 42px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.4); pointer-events: none; z-index: 6; }
+.sl-lbl { bottom: 12px; background: rgba(10,22,40,0.8); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 6px; pointer-events: none; z-index: 7; }
+#lbl-before { left: 12px; } #lbl-after { right: 12px; }
+#sbs-wrap { width: 100%; border-radius: 14px; overflow: hidden; background: #112040; border: 1px solid rgba(77,166,255,0.1); flex-shrink: 0; }
+#sbs-imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: rgba(77,166,255,0.08); }
+#sbs-imgs img { width: 100%; height: 200px; object-fit: cover; display: block; }
+#sbs-lbls { display: grid; grid-template-columns: 1fr 1fr; }
+.sbs-lbl { padding: 8px 0; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #4da6ff; }
+#sbs-brand { text-align: center; padding: 8px; font-size: 12px; font-weight: 700; color: #8a9ab8; letter-spacing: 1px; }
+#sbs-brand b { color: #4da6ff; }
+#flash { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.06s; }
+#flash.on { opacity: 1; }
+#toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(8px); background: #22d4a0; color: #0a1628; border-radius: 10px; padding: 11px 22px; font-size: 14px; font-weight: 700; z-index: 200; opacity: 0; white-space: nowrap; transition: all 0.25s; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+  </head>
+<body>
+<div id="flash"></div>
+<div id="toast">Saved</div>
+<div class="screen active" id="screen-1">
+  <div class="hdr"><div class="logo">AERIS<span>.</span></div><div class="badge">Step 1 of 2</div></div>
+  <div class="body-scroll">
+    <div class="intro"><h2>Load Before Photo</h2><p>Take the before shot with your camera app,<br>then load it here as your alignment guide.</p></div>
+    <div id="preview-wrap"><img id="preview-img" alt="before"><div id="preview-badge">✓ Photo Loaded</div></div>
+    <div style="width:100%;display:flex;flex-direction:column;gap:10px;flex-shrink:0;">
+      <label style="display:block;width:100%;cursor:pointer;"><input type="file" id="file-input" accept="image/*" style="display:none;"><div class="btn btn-blue" id="pick-lbl">📂 Choose Before Photo</div></label>
+      <button class="btn btn-green" id="btn-continue" style="display:none;">Continue to After Shot</button>
+    </div>
+  </div>
+</div>
+<div class="screen" id="screen-2">
+  <div class="hdr"><div class="logo">AERIS<span>.</span></div><div class="badge">Step 2 of 2</div></div>
+  <div id="opacity-row"><label>Ghost</label><input type="range" id="opacity-slider" min="0" max="70" value="35"></div>
+  <div id="zoom-row"><label>Zoom</label><input type="range" id="zoom-slider" min="100" max="400" value="100" step="5"></div>
+  <div id="cam-wrap">
+    <div id="cam-inner"><video id="video-after" autoplay playsinline muted></video></div>
+    <img id="ghost-img" alt="">
+    <div id="ghost-tip">Align to before photo</div>
+    <div id="zoom-indicator">1.0x</div>
+  </div>
+  <div id="cam-bottom">
+    <button class="btn-outline" id="btn-back" style="width:auto;padding:12px 18px;">Back</button>
+    <button class="shutter" id="shutter"></button>
+    <div style="width:80px;"></div>
+  </div>
+</div>
+<div class="screen" id="screen-3">
+  <div class="hdr"><div class="logo">AERIS<span>.</span></div><div class="badge">Compare</div></div>
+  <div class="body-scroll">
+    <div id="slider-wrap">
+      <div class="sl-layer" id="sl-after"><img id="img-after-sl" alt="after"></div>
+      <div class="sl-layer" id="sl-before"><img id="img-before-sl" alt="before"></div>
+      <div id="sl-line"></div>
+      <div id="sl-handle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0a1628" stroke-width="2.5" stroke-linecap="round"><path d="M8 6l-4 6 4 6M16 6l4 6-4 6"/></svg></div>
+      <div class="sl-lbl" id="lbl-before">Before</div>
+      <div class="sl-lbl" id="lbl-after">After</div>
+    </div>
+    <div id="sbs-wrap">
+      <div id="sbs-imgs"><img id="sbs-before" alt="before"><img id="sbs-after" alt="after"></div>
+      <div id="sbs-lbls"><div class="sbs-lbl">Before</div><div class="sbs-lbl">After</div></div>
+      <div id="sbs-brand"><b>AERIS.</b> Dryer Vent Cleaning</div>
+    </div>
+    <button class="btn btn-green" id="btn-save-slider">Save Slider Image</button>
+    <button class="btn btn-green" id="btn-save-sbs" style="margin-top:10px;">Save Side-by-Side</button>
+    <button class="btn-outline" id="btn-new" style="margin-top:10px;">+ New Job</button>
+  </div>
+</div>
+<canvas id="canvas" style="display:none;"></canvas>
+<script>
+var beforeURL = null;
+var afterURL  = null;
+var camStream = null;
+var camZoom   = 1.0;
+
+function showScreen(id) {
+  var all = document.querySelectorAll('.screen');
+  for (var i = 0; i < all.length; i++) {
+    all[i].classList.toggle('active', all[i].id === id);
+  }
+}
+
+function doFlash() {
+  var f = document.getElementById('flash');
+  f.classList.add('on');
+  setTimeout(function() { f.classList.remove('on'); }, 100);
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2800);
+}
+
+function startCamera() {
+  var video = document.getElementById('video-after');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('Camera not available. Use Safari on iPhone or Chrome on Android.');
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    .then(function(stream) {
+      camStream = stream;
+      video.srcObject = stream;
+      video.play();
+    })
+    .catch(function(err) {
+      alert('Camera error: ' + err.message);
+    });
+}
+
+function stopCamera() {
+  if (camStream) {
+    var tracks = camStream.getTracks();
+    for (var i = 0; i < tracks.length; i++) { tracks[i].stop(); }
+    camStream = null;
+  }
+}
+
+function applyZoom(z) {
+  camZoom = Math.max(1.0, Math.min(4.0, z));
+  document.getElementById('cam-inner').style.transform = 'scale(' + camZoom + ')';
+  var ind = document.getElementById('zoom-indicator');
+  ind.textContent = camZoom.toFixed(1) + 'x';
+  ind.style.display = camZoom > 1.0 ? 'block' : 'none';
+  document.getElementById('zoom-slider').value = Math.round(camZoom * 100);
+}
+
+document.getElementById('zoom-slider').addEventListener('input', function() {
+  applyZoom(parseInt(this.value) / 100);
+});
+var pinchStartDist = 0;
+var pinchStartZoom = 1.0;
+
+function getPinchDist(e) {
+  var dx = e.touches[0].clientX - e.touches[1].clientX;
+  var dy = e.touches[0].clientY - e.touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+var camWrap = document.getElementById('cam-wrap');
+camWrap.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 2) { pinchStartDist = getPinchDist(e); pinchStartZoom = camZoom; }
+}, { passive: true });
+camWrap.addEventListener('touchmove', function(e) {
+  if (e.touches.length === 2) { applyZoom(pinchStartZoom * (getPinchDist(e) / pinchStartDist)); }
+}, { passive: true });
+
+document.getElementById('file-input').addEventListener('change', function() {
+  var file = this.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    beforeURL = e.target.result;
+    document.getElementById('preview-img').src = beforeURL;
+    document.getElementById('preview-wrap').style.display = 'block';
+    document.getElementById('btn-continue').style.display = 'block';
+    document.getElementById('pick-lbl').textContent = 'Change Photo';
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('btn-continue').addEventListener('click', function() {
+  document.getElementById('ghost-img').src = beforeURL;
+  document.getElementById('ghost-img').style.display = 'block';
+  applyZoom(1.0);
+  startCamera();
+  showScreen('screen-2');
+});
+
+document.getElementById('opacity-slider').addEventListener('input', function() {
+  document.getElementById('ghost-img').style.opacity = (parseInt(this.value) / 100).toString();
+});
+
+document.getElementById('btn-back').addEventListener('click', function() {
+  stopCamera();
+  showScreen('screen-1');
+});
+
+document.getElementById('shutter').addEventListener('click', function() {
+  var video = document.getElementById('video-after');
+  var canvas = document.getElementById('canvas');
+  canvas.width  = video.videoWidth  || 1280;
+  canvas.height = video.videoHeight || 720;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  afterURL = canvas.toDataURL('image/jpeg', 0.92);
+  doFlash();
+  stopCamera();
+  buildCompare();
+  showScreen('screen-3');
+});
+var slDragging = false;
+var slWrap = document.getElementById('slider-wrap');
+
+function buildCompare() {
+  document.getElementById('img-before-sl').src = beforeURL;
+  document.getElementById('img-after-sl').src  = afterURL;
+  document.getElementById('sbs-before').src = beforeURL;
+  document.getElementById('sbs-after').src  = afterURL;
+  setSlider(0.5);
+}
+
+function setSlider(f) {
+  f = Math.max(0.03, Math.min(0.97, f));
+  var pct = (f * 100).toFixed(1) + '%';
+  document.getElementById('sl-before').style.clipPath = 'inset(0 ' + ((1-f)*100).toFixed(1) + '% 0 0)';
+  document.getElementById('sl-line').style.left   = pct;
+  document.getElementById('sl-handle').style.left = pct;
+}
+
+function slFrac(e) {
+  var rect = slWrap.getBoundingClientRect();
+  var x = e.touches ? e.touches[0].clientX : e.clientX;
+  return (x - rect.left) / rect.width;
+}
+
+slWrap.addEventListener('touchstart', function(e) { slDragging = true;  setSlider(slFrac(e)); }, { passive: true });
+slWrap.addEventListener('touchmove',  function(e) { if (slDragging) setSlider(slFrac(e)); },  { passive: true });
+slWrap.addEventListener('touchend',   function()  { slDragging = false; });
+slWrap.addEventListener('mousedown',  function(e) { slDragging = true;  setSlider(slFrac(e)); });
+document.addEventListener('mousemove',function(e) { if (slDragging) setSlider(slFrac(e)); });
+document.addEventListener('mouseup',  function()  { slDragging = false; });
+
+function loadBoth(cb) {
+  var b = new Image(); var a = new Image(); var n = 0;
+  function check() { n++; if (n === 2) cb(b, a); }
+  b.onload = check; a.onload = check;
+  b.src = beforeURL; a.src = afterURL;
+}
+
+function dlImage(dataURL, name) {
+  var a = document.createElement('a');
+  a.href = dataURL; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('Saved - check Downloads or Photos');
+}
+
+document.getElementById('btn-save-slider').addEventListener('click', function() {
+  loadBoth(function(imgB, imgA) {
+    var canvas = document.getElementById('canvas');
+    var W = 1080, H = 1440;
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(imgA, 0, 0, W, H);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W/2, H); ctx.clip();
+    ctx.drawImage(imgB, 0, 0, W, H); ctx.restore();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+    ctx.fillStyle = 'rgba(10,22,40,0.8)';
+    ctx.fillRect(16, H-62, 110, 36); ctx.fillRect(W-126, H-62, 110, 36);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('BEFORE', 71, H-38); ctx.fillText('AFTER', W-71, H-38);
+    ctx.fillStyle = 'rgba(10,22,40,0.75)'; ctx.fillRect(W/2-120, 16, 240, 34);
+    ctx.fillStyle = '#4da6ff'; ctx.font = 'bold 14px Arial';
+    ctx.fillText('AERIS. Dryer Vent Cleaning', W/2, 38);
+    dlImage(canvas.toDataURL('image/jpeg', 0.93), 'aeris-slider.jpg');
+  });
+});
+
+document.getElementById('btn-save-sbs').addEventListener('click', function() {
+  loadBoth(function(imgB, imgA) {
+    var canvas = document.getElementById('canvas');
+    var W = 1080, H = 1440, LBL = 80, BRD = 56;
+    var IH = H - LBL - BRD;
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0a1628'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W/2-1, IH); ctx.clip();
+    ctx.drawImage(imgB, 0, 0, W/2-1, IH); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(W/2+1, 0, W/2-1, IH); ctx.clip();
+    ctx.drawImage(imgA, W/2+1, 0, W/2-1, IH); ctx.restore();
+    ctx.fillStyle = '#0a1628'; ctx.fillRect(W/2-1, 0, 2, IH);
+    ctx.fillStyle = '#4da6ff'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('BEFORE', W/4, IH+50); ctx.fillText('AFTER', W*3/4, IH+50);
+    ctx.fillStyle = '#112040'; ctx.fillRect(0, H-BRD, W, BRD);
+    ctx.fillStyle = '#f4f8ff'; ctx.font = 'bold 20px Arial';
+    ctx.fillText('AERIS.', W/2, H-28);
+    ctx.fillStyle = '#8a9ab8'; ctx.font = '13px Arial';
+    ctx.fillText('Dryer Vent Cleaning - Boca Raton, FL', W/2, H-10);
+    dlImage(canvas.toDataURL('image/jpeg', 0.93), 'aeris-before-after.jpg');
+  });
+});
+
+document.getElementById('btn-new').addEventListener('click', function() {
+  beforeURL = null; afterURL = null;
+  stopCamera();
+  document.getElementById('preview-wrap').style.display = 'none';
+  document.getElementById('btn-continue').style.display = 'none';
+  document.getElementById('pick-lbl').textContent = 'Choose Before Photo';
+  document.getElementById('file-input').value = '';
+  showScreen('screen-1');
+});
+</script>
+</body>
+</html>  
